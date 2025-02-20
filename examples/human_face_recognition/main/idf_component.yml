@@ -3,3 +3,4 @@ dependencies:
   espressif/esp_lvgl_port:
     public: true
     version: "*"
+  espressif/esp_lcd_usb_display: "^1.0.0"

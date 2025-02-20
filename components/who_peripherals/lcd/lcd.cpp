@@ -4,8 +4,11 @@
 
 static const char *TAG = "who_lcd";
 
+
 namespace who {
 namespace lcd {
+
+extern "C" esp_err_t app_uvc_display_draw_frame(size_t h_res, size_t v_res, const uint8_t *frame_data);
 
 #if BSP_CONFIG_NO_GRAPHIC_LIB
 #pragma message("lcd wo lvgl")
@@ -47,6 +50,7 @@ LCD::LCD()
 void LCD::set_cam_fb(who::cam::cam_fb_t *fb)
 {
     lv_canvas_set_buffer(s_canvas, fb->buf, fb->width, fb->height, LV_COLOR_FORMAT_NATIVE);
+    app_uvc_display_draw_frame(fb->width, fb->height, (uint8_t*)fb->buf);
 }
 #endif
 

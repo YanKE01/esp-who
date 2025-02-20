@@ -132,11 +132,11 @@ esp_err_t ESPVideo::close_video_device()
 
 esp_err_t ESPVideo::set_video_format()
 {
-    if (CONFIG_CAMERA_SC2336_MIPI_IF_FORMAT_INDEX_DAFAULT < 8) {
-        ESP_LOGE(TAG, "raw10 cam mode is not supported.");
-        close(m_fd);
-        return ESP_FAIL;
-    }
+    // if (CONFIG_CAMERA_SC2336_MIPI_IF_FORMAT_INDEX_DAFAULT < 8) {
+    //     ESP_LOGE(TAG, "raw10 cam mode is not supported.");
+    //     close(m_fd);
+    //     return ESP_FAIL;
+    // }
     struct v4l2_format format;
     memset(&format, 0, sizeof(struct v4l2_format));
     format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

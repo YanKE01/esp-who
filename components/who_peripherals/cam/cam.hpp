@@ -41,13 +41,12 @@ public:
              const uint8_t fb_count,
              const v4l2_memory fb_mem_type,
              bool horizontal_flip);
-
+    int m_width;
+    int m_height;
 protected:
     video_pix_fmt_t m_video_pix_fmt;
     v4l2_memory m_fb_mem_type;
     bool m_horizontal_flip;
-    int m_width;
-    int m_height;
     int m_fd;
     void video_init();
     void video_deinit();

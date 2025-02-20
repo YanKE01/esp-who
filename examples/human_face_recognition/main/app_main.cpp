@@ -1,6 +1,8 @@
 #include "spiflash_fatfs.hpp"
 #include "who_cam_lcd.hpp"
 #include "who_recognition.hpp"
+#include "esp_lcd_usb_display.h"
+#include "app_uvc.h"
 
 using namespace who::app;
 using namespace who::cam;
@@ -19,6 +21,11 @@ extern "C" void app_main(void)
 #endif
 #if CONFIG_IDF_TARGET_ESP32P4
     auto cam = new P4Cam(VIDEO_PIX_FMT_RGB565, 5, V4L2_MEMORY_MMAP, true);
+
+    printf("res: %d x %d\n", cam->m_width, cam->m_height);
+
+    app_uvc_display_main(cam->m_width, cam->m_height);
+
 #elif CONFIG_IDF_TARGET_ESP32S3
     auto cam = new S3Cam(PIXFORMAT_RGB565, FRAMESIZE_240X240, 4, true);
 #endif
