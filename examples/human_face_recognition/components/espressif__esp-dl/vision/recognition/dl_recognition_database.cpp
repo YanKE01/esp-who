@@ -186,6 +186,7 @@ esp_err_t DataBase::delete_feat(uint16_t id)
             heap_caps_free(it->feat);
             it = m_feats.erase(it);
             m_meta.num_feats_valid--;
+            m_meta.num_feats_total--;
             invalid_id = false;
             break;
         }

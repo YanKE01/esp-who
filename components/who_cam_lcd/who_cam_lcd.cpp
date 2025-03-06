@@ -60,13 +60,13 @@ void WhoCamLCD::task(void *args)
         self->m_cam->cam_fb_return();
 
 
-        static int count = 0;
-        if (count % 10 == 0) {
-            perfmon_start(0, "PFS", "camera");
-        } else if (count % 10 == 9) {
-            perfmon_end(0, 10);
-        }
-        count++;
+        // static int count = 0;
+        // if (count % 10 == 0) {
+        //     perfmon_start(0, "PFS", "camera");
+        // } else if (count % 10 == 9) {
+        //     perfmon_end(0, 10);
+        // }
+        // count++;
     }
 }
 

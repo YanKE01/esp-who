@@ -12,6 +12,9 @@ LV_FONT_DECLARE(montserrat_bold_26);
 
 namespace who {
 namespace app {
+
+static bool detect_enable_flag = true;
+
 using namespace who::lcd;
 TaskHandle_t WhoHumanFaceRecognition::s_task_handle = nullptr;
 
@@ -68,6 +71,7 @@ void WhoHumanFaceRecognition::recognition_task(void *args)
             } else {
                 snprintf(text, 64, "id: %d, sim: %.2f", rec_res[0].id, rec_res[0].similarity);
             }
+            printf("recognize: %s\n", text);
             xSemaphoreTake(self->m_rec_res_mutex, portMAX_DELAY);
             self->m_rec_results.emplace_back(text);
             xSemaphoreGive(self->m_rec_res_mutex);
@@ -91,6 +95,7 @@ void WhoHumanFaceRecognition::recognition_task(void *args)
             } else {
                 snprintf(text, 64, "id: %d enrolled.", self->m_recognizer->get_num_feats());
             }
+            printf("enroll: %s\n", text);
             xSemaphoreTake(self->m_rec_res_mutex, portMAX_DELAY);
             self->m_rec_results.emplace_back(text);
             xSemaphoreGive(self->m_rec_res_mutex);
@@ -119,6 +124,11 @@ void WhoHumanFaceRecognition::recognition_task(void *args)
             auto *fb = self->m_cam->cam_fb_peek();
             timestamp = fb->timestamp;
             auto &det_res = self->m_detect->run(who::cam::fb2img(fb));
+            if(detect_enable_flag == false)
+            {
+                det_res = {};
+            }
+    
             xSemaphoreTake(self->m_det_res_mutex, portMAX_DELAY);
             self->m_det_results.push({det_res, timestamp});
             xSemaphoreGive(self->m_det_res_mutex);
@@ -159,6 +169,7 @@ inline void WhoHumanFaceRecognition::btn_event_handler(fr_event_t fr_event)
         break;
     }
 }
+
 
 void WhoHumanFaceRecognition::create_btns()
 {
@@ -262,5 +273,33 @@ void WhoHumanFaceRecognition::run()
         ESP_LOGE(TAG, "Failed to create WhoRecog task.\n");
     }
 }
+
+void WhoHumanFaceRecognition::enroll()
+{
+    xTaskNotify(s_task_handle, (uint32_t)fr_event_t::ENROLL, eSetBits);
+}
+
+void WhoHumanFaceRecognition::recognize()
+{
+    xTaskNotify(s_task_handle, (uint32_t)fr_event_t::RECOGNIZE, eSetBits);
+}
+
+
+int WhoHumanFaceRecognition::get_all_registered_id()
+{
+    return m_recognizer->get_num_feats();
+}
+
+void WhoHumanFaceRecognition::detect_enable(bool enable)
+{
+    detect_enable_flag = enable;
+}
+
+esp_err_t WhoHumanFaceRecognition::delete_rec_result(int target_id)
+{
+    return m_recognizer->delete_feat(target_id);
+}
+
+
 } // namespace app
 } // namespace who

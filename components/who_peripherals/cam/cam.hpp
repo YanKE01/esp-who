@@ -72,6 +72,8 @@ public:
     cam_fb_t *cam_fb_get() override;
     cam_fb_t *cam_fb_peek(bool back = true) override;
     void cam_fb_return() override;
+    esp_err_t print_exposure_info();
+    esp_err_t set_exposure_time(int time);
 
 private:
     SemaphoreHandle_t m_mutex;

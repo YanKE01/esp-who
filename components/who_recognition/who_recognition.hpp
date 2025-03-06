@@ -3,6 +3,8 @@
 #include "human_face_detect.hpp"
 #include "human_face_recognition.hpp"
 
+
+
 namespace who {
 namespace app {
 
@@ -28,6 +30,11 @@ public:
     void run();
     void display(who::cam::cam_fb_t *fb);
     static TaskHandle_t s_task_handle;
+    void enroll();
+    void recognize();
+    int get_all_registered_id();
+    void detect_enable(bool enable);
+    esp_err_t delete_rec_result(int index);
 
 private:
     static void event_handle_task(void *args);

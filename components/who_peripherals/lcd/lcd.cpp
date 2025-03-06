@@ -39,7 +39,7 @@ lv_obj_t *LCD::s_canvas = nullptr;
 LCD::LCD()
 {
     bsp_display_start();
-    ESP_ERROR_CHECK(bsp_display_backlight_on());
+    // ESP_ERROR_CHECK(bsp_display_backlight_on());
 
     bsp_display_lock(0);
     s_canvas = lv_canvas_create(lv_scr_act());

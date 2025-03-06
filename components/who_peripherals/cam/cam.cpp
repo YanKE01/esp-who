@@ -323,6 +323,72 @@ esp_err_t P4Cam::init_fbs()
     return ESP_OK;
 }
 
+esp_err_t P4Cam::print_exposure_info()
+{
+    struct v4l2_query_ext_ctrl qctrl;
+    struct v4l2_ext_controls controls;
+    struct v4l2_ext_control control[1];
+
+    qctrl.id = V4L2_CID_EXPOSURE_ABSOLUTE;
+
+    if (ioctl(m_fd, VIDIOC_QUERY_EXT_CTRL, &qctrl) != 0) {
+        ESP_LOGE(TAG, "Failed to query exposure time");
+        return ESP_FAIL;
+    }
+
+    controls.ctrl_class = V4L2_CID_CAMERA_CLASS;
+    controls.count      = 1;
+    controls.controls   = control;
+    control[0].id       = V4L2_CID_EXPOSURE_ABSOLUTE;
+
+    if (ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &controls) != 0) {
+        ESP_LOGE(TAG, "Failed to get Exposure time");
+        return ESP_FAIL;
+    }
+
+    printf("Exposure min: %d, max: %d, step: %d, value: %d \n", (int)qctrl.minimum, (int)qctrl.maximum, (int)qctrl.step, (int)control[0].value);
+    return ESP_OK;
+}
+
+esp_err_t P4Cam::set_exposure_time(int time)
+{
+    struct v4l2_query_ext_ctrl qctrl;
+    struct v4l2_ext_controls controls;
+    struct v4l2_ext_control control[1];
+
+    qctrl.id = V4L2_CID_EXPOSURE_ABSOLUTE;
+
+    if (ioctl(m_fd, VIDIOC_QUERY_EXT_CTRL, &qctrl) != 0) {
+        ESP_LOGE(TAG, "Failed to query exposure time");
+        return ESP_FAIL;
+    }
+
+    controls.ctrl_class = V4L2_CID_CAMERA_CLASS;
+    controls.count      = 1;
+    controls.controls   = control;
+    control[0].id       = V4L2_CID_EXPOSURE_ABSOLUTE;
+
+    if (ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &controls) != 0) {
+        ESP_LOGE(TAG, "Failed to get Exposure time");
+        return ESP_FAIL;
+    }
+
+    if (time > qctrl.maximum || time < qctrl.minimum) {
+        ESP_LOGE(TAG, "Exposure time is out of range");
+        return ESP_FAIL;
+    }
+
+    control[0].value = time;
+
+    if (ioctl(m_fd, VIDIOC_S_EXT_CTRLS, &controls) != 0) {
+        ESP_LOGE(TAG, "Failed to set Exposure time");
+        return ESP_FAIL;
+    }
+
+    printf("Exposure time set to %d\n", time);
+    return ESP_OK;
+}
+
 bool PPAP4Cam::ppa_trans_done_cb(ppa_client_handle_t ppa_client, ppa_event_data_t *event_data, void *user_data)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -527,7 +593,7 @@ esp_err_t PPAP4Cam::init_fbs()
         ppa_fb->height = m_ppa_resized_h;
         ppa_fb->format = VIDEO_PIX_FMT_RGB888;
         ppa_fb->buf = heap_caps_aligned_calloc(
-            cache_line_size, ppa_buffer_size, sizeof(uint8_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA);
+                          cache_line_size, ppa_buffer_size, sizeof(uint8_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA);
         ppa_fb->len = ppa_buffer_size;
 
         if (!fb->buf || !ppa_fb->buf) {
