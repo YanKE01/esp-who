@@ -137,7 +137,7 @@ void draw_detect_results(who::cam::cam_fb_t *fb,
                          const std::list<dl::detect::result_t> &detect_res,
                          const std::vector<uint8_t> &color)
 {
-    bsp_display_lock(0);
+    // bsp_display_lock(0);
     uint16_t *rgb_buf = reinterpret_cast<uint16_t *>(fb->buf);
     for (const auto &res : detect_res) {
         draw_rectangle_rgb(rgb_buf, fb->width, fb->height,
@@ -155,43 +155,43 @@ void draw_detect_results(who::cam::cam_fb_t *fb,
     }
 
     LCD::set_cam_fb(fb);
-#if CONFIG_IDF_TARGET_ESP32P4
-    lv_color_t c = lv_color_make(color[0], color[1], color[2]);
-#else
-    lv_color_t c = cvt_little_endian_color(lv_color_make(color[0], color[1], color[2]));
-#endif
+// #if CONFIG_IDF_TARGET_ESP32P4
+//     lv_color_t c = lv_color_make(color[0], color[1], color[2]);
+// #else
+//     lv_color_t c = cvt_little_endian_color(lv_color_make(color[0], color[1], color[2]));
+// #endif
 
-    lv_draw_rect_dsc_t rect_dsc;
-    lv_draw_rect_dsc_init(&rect_dsc);
-    rect_dsc.bg_opa = LV_OPA_TRANSP;
-    rect_dsc.border_width = 2;
-    rect_dsc.border_color = c;
+//     lv_draw_rect_dsc_t rect_dsc;
+//     lv_draw_rect_dsc_init(&rect_dsc);
+//     rect_dsc.bg_opa = LV_OPA_TRANSP;
+//     rect_dsc.border_width = 2;
+//     rect_dsc.border_color = c;
 
-    lv_draw_arc_dsc_t arc_dsc;
-    lv_draw_arc_dsc_init(&arc_dsc);
-    arc_dsc.color = c;
-    arc_dsc.width = 5;
-    arc_dsc.radius = 5;
-    arc_dsc.start_angle = 0;
-    arc_dsc.end_angle = 360;
+//     lv_draw_arc_dsc_t arc_dsc;
+//     lv_draw_arc_dsc_init(&arc_dsc);
+//     arc_dsc.color = c;
+//     arc_dsc.width = 5;
+//     arc_dsc.radius = 5;
+//     arc_dsc.start_angle = 0;
+//     arc_dsc.end_angle = 360;
 
-    lv_layer_t layer;
-    lv_canvas_init_layer(LCD::s_canvas, &layer);
-    lv_area_t coords_rect;
-    for (const auto &res : detect_res) {
-        coords_rect = {res.box[0], res.box[1], res.box[2], res.box[3]};
-        lv_draw_rect(&layer, &rect_dsc, &coords_rect);
-        if (!res.keypoint.empty()) {
-            assert(res.keypoint.size() == 10);
-            for (int i = 0; i < 5; i++) {
-                arc_dsc.center.x = res.keypoint[2 * i];
-                arc_dsc.center.y = res.keypoint[2 * i + 1];
-                lv_draw_arc(&layer, &arc_dsc);
-            }
-        }
-    }
-    lv_canvas_finish_layer(LCD::s_canvas, &layer);
-    bsp_display_unlock();
+//     lv_layer_t layer;
+//     lv_canvas_init_layer(LCD::s_canvas, &layer);
+//     lv_area_t coords_rect;
+//     for (const auto &res : detect_res) {
+//         coords_rect = {res.box[0], res.box[1], res.box[2], res.box[3]};
+//         lv_draw_rect(&layer, &rect_dsc, &coords_rect);
+//         if (!res.keypoint.empty()) {
+//             assert(res.keypoint.size() == 10);
+//             for (int i = 0; i < 5; i++) {
+//                 arc_dsc.center.x = res.keypoint[2 * i];
+//                 arc_dsc.center.y = res.keypoint[2 * i + 1];
+//                 lv_draw_arc(&layer, &arc_dsc);
+//             }
+//         }
+//     }
+//     lv_canvas_finish_layer(LCD::s_canvas, &layer);
+//     bsp_display_unlock();
 }
 
 lv_obj_t *create_lvgl_btn(const char *text, const lv_font_t *font)

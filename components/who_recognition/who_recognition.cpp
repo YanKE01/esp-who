@@ -45,8 +45,8 @@ void WhoHumanFaceRecognition::event_handle_task(void *args)
 void WhoHumanFaceRecognition::recognition_task(void *args)
 {
     WhoHumanFaceRecognition *self = (WhoHumanFaceRecognition *)args;
-    self->create_btns();
-    self->create_label();
+    // self->create_btns();
+    // self->create_label();
     struct timeval timestamp;
     fr_status_t status;
     int64_t start = esp_timer_get_time();
@@ -241,24 +241,24 @@ void WhoHumanFaceRecognition::display(who::cam::cam_fb_t *fb)
         draw_detect_results(fb, det_result.det_res);
     }
 
-    xSemaphoreTake(m_rec_res_mutex, portMAX_DELAY);
-    static int cnt = WHO_REC_RES_SHOW_N_FRAMES;
-    if (!m_rec_results.empty()) {
-        bsp_display_lock(0);
-        lv_label_set_text(m_label, m_rec_results.back());
-        bsp_display_unlock();
-        for (auto iter = m_rec_results.begin(); iter != m_rec_results.end(); iter++) {
-            delete[] *iter;
-        }
-        m_rec_results.clear();
-        cnt = 0;
-    }
-    if (cnt < WHO_REC_RES_SHOW_N_FRAMES && ++cnt == WHO_REC_RES_SHOW_N_FRAMES) {
-        bsp_display_lock(0);
-        lv_label_set_text(m_label, "");
-        bsp_display_unlock();
-    }
-    xSemaphoreGive(m_rec_res_mutex);
+    // xSemaphoreTake(m_rec_res_mutex, portMAX_DELAY);
+    // static int cnt = WHO_REC_RES_SHOW_N_FRAMES;
+    // if (!m_rec_results.empty()) {
+    //     bsp_display_lock(0);
+    //     lv_label_set_text(m_label, m_rec_results.back());
+    //     bsp_display_unlock();
+    //     for (auto iter = m_rec_results.begin(); iter != m_rec_results.end(); iter++) {
+    //         delete[] *iter;
+    //     }
+    //     m_rec_results.clear();
+    //     cnt = 0;
+    // }
+    // if (cnt < WHO_REC_RES_SHOW_N_FRAMES && ++cnt == WHO_REC_RES_SHOW_N_FRAMES) {
+    //     bsp_display_lock(0);
+    //     lv_label_set_text(m_label, "");
+    //     bsp_display_unlock();
+    // }
+    // xSemaphoreGive(m_rec_res_mutex);
 }
 
 void WhoHumanFaceRecognition::run()

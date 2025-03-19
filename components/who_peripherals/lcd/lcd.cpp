@@ -38,18 +38,18 @@ void LCD::set_cam_fb(who::cam::cam_fb_t *fb)
 lv_obj_t *LCD::s_canvas = nullptr;
 LCD::LCD()
 {
-    bsp_display_start();
-    // ESP_ERROR_CHECK(bsp_display_backlight_on());
+    // bsp_display_start();
+    // // ESP_ERROR_CHECK(bsp_display_backlight_on());
 
-    bsp_display_lock(0);
-    s_canvas = lv_canvas_create(lv_scr_act());
-    lv_obj_set_size(s_canvas, BSP_LCD_H_RES, BSP_LCD_V_RES);
-    bsp_display_unlock();
+    // bsp_display_lock(0);
+    // s_canvas = lv_canvas_create(lv_scr_act());
+    // lv_obj_set_size(s_canvas, BSP_LCD_H_RES, BSP_LCD_V_RES);
+    // bsp_display_unlock();
 }
 
 void LCD::set_cam_fb(who::cam::cam_fb_t *fb)
 {
-    lv_canvas_set_buffer(s_canvas, fb->buf, fb->width, fb->height, LV_COLOR_FORMAT_NATIVE);
+    // lv_canvas_set_buffer(s_canvas, fb->buf, fb->width, fb->height, LV_COLOR_FORMAT_NATIVE);
     app_uvc_display_draw_frame(fb->width, fb->height, (uint8_t*)fb->buf);
 }
 #endif
