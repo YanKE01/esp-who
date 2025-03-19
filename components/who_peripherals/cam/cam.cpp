@@ -1,4 +1,5 @@
 #include "cam.hpp"
+#include "esp_video_ioctl.h"
 
 static const char *TAG = "who::cam";
 
@@ -37,11 +38,39 @@ esp_err_t ESPVideo::set_horizontal_flip()
 
 void ESPVideo::video_init()
 {
-    esp_video_init_csi_config_t csi_config[] = CSI_CAMERA_DEFAULT_CONFIG;
-    ESP_ERROR_CHECK(bsp_i2c_init());
-    csi_config[0].sccb_config.i2c_handle = bsp_i2c_get_handle();
-    esp_video_init_config_t cam_config{};
-    cam_config.csi = csi_config;
+    esp_video_init_dvp_config_t dvp_config[] = {
+        {
+            .sccb_config = {
+                .init_sccb = true,
+                .i2c_config = {
+                    .port      = CONFIG_EXAMPLE_DVP_SCCB_I2C_PORT,
+                    .scl_pin   = CONFIG_EXAMPLE_DVP_SCCB_I2C_SCL_PIN,
+                    .sda_pin   = CONFIG_EXAMPLE_DVP_SCCB_I2C_SDA_PIN,
+                },
+                .freq      = CONFIG_EXAMPLE_DVP_SCCB_I2C_FREQ,
+            },
+            .reset_pin = (gpio_num_t)CONFIG_EXAMPLE_DVP_CAM_SENSOR_RESET_PIN,
+            .pwdn_pin  = (gpio_num_t)CONFIG_EXAMPLE_DVP_CAM_SENSOR_PWDN_PIN,
+            .dvp_pin = {
+                .data_width = CAM_CTLR_DATA_WIDTH_8,
+                .data_io = {
+                    (gpio_num_t)CONFIG_EXAMPLE_DVP_D0_PIN, (gpio_num_t)CONFIG_EXAMPLE_DVP_D1_PIN,
+                    (gpio_num_t)CONFIG_EXAMPLE_DVP_D2_PIN, (gpio_num_t)CONFIG_EXAMPLE_DVP_D3_PIN,
+                    (gpio_num_t)CONFIG_EXAMPLE_DVP_D4_PIN, (gpio_num_t)CONFIG_EXAMPLE_DVP_D5_PIN,
+                    (gpio_num_t)CONFIG_EXAMPLE_DVP_D6_PIN, (gpio_num_t)CONFIG_EXAMPLE_DVP_D7_PIN,
+                },
+                .vsync_io = (gpio_num_t)CONFIG_EXAMPLE_DVP_VSYNC_PIN,
+                .de_io    = (gpio_num_t)CONFIG_EXAMPLE_DVP_DE_PIN,
+                .pclk_io  = (gpio_num_t)CONFIG_EXAMPLE_DVP_PCLK_PIN,
+                .xclk_io  = (gpio_num_t)CONFIG_EXAMPLE_DVP_XCLK_PIN,
+            },
+            .xclk_freq = CONFIG_EXAMPLE_DVP_XCLK_FREQ,
+        },
+    };
+
+    esp_video_init_config_t cam_config = {
+        .dvp = dvp_config,
+    };
 
     ESP_ERROR_CHECK(esp_video_init(&cam_config));
     ESP_ERROR_CHECK(open_video_device());
@@ -62,7 +91,7 @@ void ESPVideo::video_deinit()
 
 esp_err_t ESPVideo::open_video_device()
 {
-    m_fd = open("/dev/video0", O_RDONLY);
+    m_fd = open("/dev/video2", O_RDONLY);
     if (m_fd < 0) {
         ESP_LOGE(TAG, "failed to open device");
         return ESP_FAIL;
@@ -352,33 +381,20 @@ esp_err_t P4Cam::print_exposure_info()
 
 esp_err_t P4Cam::set_exposure_time(int time)
 {
-    struct v4l2_query_ext_ctrl qctrl;
-    struct v4l2_ext_controls controls;
-    struct v4l2_ext_control control[1];
 
-    qctrl.id = V4L2_CID_EXPOSURE_ABSOLUTE;
-
-    if (ioctl(m_fd, VIDIOC_QUERY_EXT_CTRL, &qctrl) != 0) {
-        ESP_LOGE(TAG, "Failed to query exposure time");
-        return ESP_FAIL;
-    }
-
-    controls.ctrl_class = V4L2_CID_CAMERA_CLASS;
-    controls.count      = 1;
-    controls.controls   = control;
-    control[0].id       = V4L2_CID_EXPOSURE_ABSOLUTE;
-
-    if (ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &controls) != 0) {
-        ESP_LOGE(TAG, "Failed to get Exposure time");
-        return ESP_FAIL;
-    }
-
-    if (time > qctrl.maximum || time < qctrl.minimum) {
+    if (time > 96 || time < 47) {
         ESP_LOGE(TAG, "Exposure time is out of range");
         return ESP_FAIL;
     }
 
-    control[0].value = time;
+    struct v4l2_ext_controls controls;
+    struct v4l2_ext_control control[1];
+
+    controls.ctrl_class = V4L2_CTRL_CLASS_USER;
+    controls.count      = 1;
+    controls.controls   = control;
+    control[0].id       = V4L2_CID_CAMERA_AE_LEVEL;
+    control[0].value    = time;
 
     if (ioctl(m_fd, VIDIOC_S_EXT_CTRLS, &controls) != 0) {
         ESP_LOGE(TAG, "Failed to set Exposure time");

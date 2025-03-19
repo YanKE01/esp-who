@@ -2,6 +2,7 @@
 #include "cam.hpp"
 #include "human_face_detect.hpp"
 #include "human_face_recognition.hpp"
+#include "driver/jpeg_encode.h"
 
 
 
@@ -54,6 +55,13 @@ private:
     lv_obj_t *m_label;
     std::queue<det_result_t> m_det_results;
     std::list<rec_result_t> m_rec_results;
+
+    jpeg_encode_cfg_t jpeg_enc_config;
+    size_t jpeg_enc_input_src_size;
+    jpeg_encoder_handle_t jpeg_handle;
+    uint8_t *jpeg_out_buf;
+    size_t jpeg_enc_output_buf_alloced_size;
+    uint32_t jpeg_encoded_size = 0;
 };
 } // namespace app
 } // namespace who

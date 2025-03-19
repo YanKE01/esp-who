@@ -137,7 +137,6 @@ void draw_detect_results(who::cam::cam_fb_t *fb,
                          const std::list<dl::detect::result_t> &detect_res,
                          const std::vector<uint8_t> &color)
 {
-    // bsp_display_lock(0);
     uint16_t *rgb_buf = reinterpret_cast<uint16_t *>(fb->buf);
     for (const auto &res : detect_res) {
         draw_rectangle_rgb(rgb_buf, fb->width, fb->height,
@@ -154,6 +153,7 @@ void draw_detect_results(who::cam::cam_fb_t *fb,
         }
     }
 
+    
     LCD::set_cam_fb(fb);
 // #if CONFIG_IDF_TARGET_ESP32P4
 //     lv_color_t c = lv_color_make(color[0], color[1], color[2]);

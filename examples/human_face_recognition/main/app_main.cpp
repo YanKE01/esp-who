@@ -106,7 +106,8 @@ int at_face_stop_func(int argc, char **argv)
 
 int at_print_exposure_info(int argc, char **argv)
 {
-    return cam->print_exposure_info();
+    printf("Exposure min: %d, max: %d, default: %d\n", 0x2f, 0x60,0x50);
+    return 0;
 }
 
 int at_set_exposure_info(int argc, char **argv)
@@ -128,6 +129,8 @@ int at_set_exposure_info(int argc, char **argv)
     
     return cam->set_exposure_time(exposure_time);
 }
+
+
 
 extern "C" void app_main(void)
 {
@@ -157,7 +160,7 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(bsp_sdcard_mount());
 #endif
 #if CONFIG_IDF_TARGET_ESP32P4
-    cam = new P4Cam(VIDEO_PIX_FMT_RGB565, 5, V4L2_MEMORY_MMAP, true);
+    cam = new P4Cam(VIDEO_PIX_FMT_YUV422P, 5, V4L2_MEMORY_MMAP, true);
 
     printf("res: %d x %d\n", cam->m_width, cam->m_height);
 

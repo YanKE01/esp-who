@@ -82,6 +82,15 @@ private:
     std::queue<cam_fb_t *> m_buf_queue;
 
     esp_err_t init_fbs() override;
+
+
+    jpeg_encode_cfg_t jpeg_enc_config;
+    size_t jpeg_enc_input_src_size;
+    jpeg_encoder_handle_t jpeg_handle;
+    uint8_t *jpeg_out_buf;
+    size_t jpeg_enc_output_buf_alloced_size;
+    uint32_t jpeg_encoded_size = 0;
+    dl::image::img_t dl_img;
 };
 
 class PPAP4Cam : public ESPVideo {
