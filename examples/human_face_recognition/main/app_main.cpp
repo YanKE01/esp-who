@@ -11,6 +11,8 @@ using namespace who::app;
 using namespace who::cam;
 using namespace dl::detect;
 
+static const char *TAG = "HumanFaceRecognition";
+
 esp_console_repl_t *repl = NULL;
 esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
 WhoHumanFaceRecognition *who_recognition = nullptr;
@@ -74,9 +76,15 @@ int at_delete_func(int argc, char **argv)
     return 1;
 }
 
-int at_recognize_func(int argc, char **argv)
+int at_recognize_start_func(int argc, char **argv)
 {
-    who_recognition->recognize();
+    who_recognition->is_recognize = true;
+    return 0;
+}
+
+int at_recognize_stop_func(int argc, char **argv)
+{
+    who_recognition->is_recognize = false;
     return 0;
 }
 
@@ -106,7 +114,7 @@ int at_face_stop_func(int argc, char **argv)
 
 int at_print_exposure_info(int argc, char **argv)
 {
-    printf("Exposure min: %d, max: %d, default: %d\n", 0x2f, 0x60,0x50);
+    printf("Exposure min: %d, max: %d, default: %d\n", 0x2f, 0x60, 0x50);
     return 0;
 }
 
@@ -126,11 +134,77 @@ int at_set_exposure_info(int argc, char **argv)
     }
 
     int exposure_time = atoi(param_value);
-    
+
     return cam->set_exposure_time(exposure_time);
 }
 
+static uint8_t triggerDump = 1;
+typedef struct {
+    uint32_t ulRunTimeCounter;
+    uint32_t xTaskNumber;
+} taskData_t;
 
+#define TASK_MAX_COUNT 32
+static taskData_t previousSnapshot[TASK_MAX_COUNT]; 
+static int taskTopIndex = 0;
+static uint32_t previousTotalRunTime = 0;
+static StaticTimer_t timerBuffer;
+
+static taskData_t *getPreviousTaskData(uint32_t xTaskNumber)
+{
+    // Try to find the task in the list of tasks
+    for (int i = 0; i < taskTopIndex; i++) {
+        if (previousSnapshot[i].xTaskNumber == xTaskNumber) {
+            return &previousSnapshot[i];
+        }
+    }
+
+    // Allocate a new entry
+    ESP_ERROR_CHECK(!(taskTopIndex < TASK_MAX_COUNT)); taskData_t *result = &previousSnapshot[taskTopIndex]; result->xTaskNumber = xTaskNumber;
+    taskTopIndex++;
+    return result;
+}
+
+static void task_monitor()
+{
+    //if want use it ,must set CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+    if (triggerDump != 0) {
+        uint32_t totalRunTime;
+        TaskStatus_t taskStats[TASK_MAX_COUNT];
+        uint32_t taskCount = uxTaskGetSystemState(taskStats, TASK_MAX_COUNT, &totalRunTime);
+        ESP_ERROR_CHECK(!(taskTopIndex < TASK_MAX_COUNT));
+        uint32_t totalDelta = totalRunTime - previousTotalRunTime;
+        float f = 100.0 / totalDelta;
+
+        // Dumps the the CPU load and stack usage for all tasks
+        // CPU usage is since last dump in % compared to total time spent in tasks.Note that time spent in interrupts will be included in measured time.
+        // Stack usage is displayed as nr of unused bytes at peak stack usage.
+
+        ESP_LOGI(TAG, "Task dump");
+        ESP_LOGI(TAG, "Load\tStack left\tName\tPRI");
+        for (uint32_t i = 0; i < taskCount; i++) {
+            TaskStatus_t *stats = &taskStats[i];
+            taskData_t *previousTaskData = getPreviousTaskData(stats->xTaskNumber);
+            uint32_t taskRunTime = stats->ulRunTimeCounter;
+            float load = f * (taskRunTime - previousTaskData->ulRunTimeCounter);
+            ESP_LOGI(TAG, "%.2f \t%u \t%s \t%u", load, stats->usStackHighWaterMark, stats->pcTaskName, stats->uxBasePriority);
+            previousTaskData->ulRunTimeCounter = taskRunTime;
+        }
+        ESP_LOGI(TAG, "Internal free heap: %d\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+        previousTotalRunTime = totalRunTime;
+    }
+}
+
+
+void monitor_task(void *arg)
+{
+    while (1)
+    {
+        task_monitor();
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+    }
+    
+}
 
 extern "C" void app_main(void)
 {
@@ -214,11 +288,19 @@ extern "C" void app_main(void)
         .argtable = NULL,
     };
 
-    const esp_console_cmd_t at_recognize = {
-        .command = "AT+Recognize",
-        .help = "Recognize the current face",
+    const esp_console_cmd_t at_recognize_start = {
+        .command = "AT+RecognizeStart",
+        .help = "Start recognize face",
         .hint = NULL,
-        .func = at_recognize_func,
+        .func = at_recognize_start_func,
+        .argtable = NULL,
+    };
+
+    const esp_console_cmd_t at_recognize_stop = {
+        .command = "AT+RecognizeStop",
+        .help = "Stop recognize face",
+        .hint = NULL,
+        .func = at_recognize_stop_func,
         .argtable = NULL,
     };
 
@@ -285,7 +367,8 @@ extern "C" void app_main(void)
     };
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&at_enroll));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&at_recognize));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&at_recognize_start));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&at_recognize_stop));
     ESP_ERROR_CHECK(esp_console_cmd_register(&at_reset));
     ESP_ERROR_CHECK(esp_console_cmd_register(&at_get_all_registered_id));
     ESP_ERROR_CHECK(esp_console_cmd_register(&at_face_start));
@@ -295,6 +378,8 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(esp_console_cmd_register(&at_set_exposure_info_cmd));
 
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
+
+    xTaskCreatePinnedToCore(monitor_task, "monitor_task", 4096, NULL, 2, NULL, 1);
 
 #if !CONFIG_DB_FATFS_SDCARD && (CONFIG_HUMAN_FACE_DETECT_MODEL_IN_SDCARD || CONFIG_HUMAN_FACE_FEAT_MODEL_IN_SDCARD)
     ESP_ERROR_CHECK(bsp_sdcard_unmount());

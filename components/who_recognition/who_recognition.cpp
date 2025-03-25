@@ -63,33 +63,36 @@ void WhoHumanFaceRecognition::recognition_task(void *args)
             auto *fb = self->m_cam->cam_fb_peek();
             timestamp = fb->timestamp;
 
+            uint64_t start_time = esp_timer_get_time();
+
             res = jpeg_encoder_process(self->jpeg_handle, &self->jpeg_enc_config, (uint8_t *)fb->buf, fb->len, self->jpeg_out_buf, self->jpeg_enc_output_buf_alloced_size, &self->jpeg_encoded_size);
 
             if (res != ESP_OK) {
                 ESP_LOGE(TAG, "jpeg encode failed");
             }
 
-            dl::image::jpeg_img_t jpeg_img = {
-                .data = self->jpeg_out_buf,
-                .width = 640,
-                .height = 480,
-                .data_size = self->jpeg_encoded_size
-            };
+
+            res = jpeg_decoder_process(self->jpeg_dec_handle, &self->jpeg_dec_config, self->jpeg_out_buf, self->jpeg_encoded_size, self->jpeg_dec_out_buf, self->jpeg_dec_output_buf_alloced_size, &self->jpeg_decoded_size);
+            if (res!= ESP_OK) {
+                ESP_LOGE(TAG, "jpeg decode failed");
+                break;
+            }
 
             dl::image::img_t dl_img;
-            dl_img.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB888;
-            res  = sw_decode_jpeg(jpeg_img, dl_img, true);
-
-            if (res != ESP_OK) {
-                ESP_LOGE(TAG, "jpeg decode failed");
-            }
+            dl_img.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB565;
+            dl_img.data = (uint8_t *)self->jpeg_dec_out_buf;
+            dl_img.width = 640;
+            dl_img.height = 480;
 
             auto &det_res = self->m_detect->run(dl_img);
             xSemaphoreTake(self->m_det_res_mutex, portMAX_DELAY);
             self->m_det_results.push({det_res, timestamp});
             xSemaphoreGive(self->m_det_res_mutex);
             auto rec_res = self->m_recognizer->recognize(dl_img, det_res);
-            heap_caps_free(dl_img.data);
+
+            uint64_t eplase_time = esp_timer_get_time() - start_time;
+            // printf("recognize time: %lld us\n", eplase_time);
+
 
             char *text = new char[64];
             if (rec_res.empty()) {
@@ -116,23 +119,18 @@ void WhoHumanFaceRecognition::recognition_task(void *args)
                 ESP_LOGE(TAG, "jpeg encode failed");
             }
 
-            dl::image::jpeg_img_t jpeg_img = {
-                .data = self->jpeg_out_buf,
-                .width = 640,
-                .height = 480,
-                .data_size = self->jpeg_encoded_size
-            };
-
-            dl::image::img_t dl_img;
-            dl_img.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB888;
-            res  = sw_decode_jpeg(jpeg_img, dl_img, true);
-
-            if (res != ESP_OK) {
+            res = jpeg_decoder_process(self->jpeg_dec_handle, &self->jpeg_dec_config, self->jpeg_out_buf, self->jpeg_encoded_size, self->jpeg_dec_out_buf, self->jpeg_dec_output_buf_alloced_size, &self->jpeg_decoded_size);
+            if (res!= ESP_OK) {
                 ESP_LOGE(TAG, "jpeg decode failed");
+                break;
             }
 
+            dl::image::img_t dl_img;
+            dl_img.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB565;
+            dl_img.data = (uint8_t *)self->jpeg_dec_out_buf;
+            dl_img.width = 640;
+            dl_img.height = 480;
 
-            // auto img = who::cam::fb2img(fb);
             auto &det_res = self->m_detect->run(dl_img);
             xSemaphoreTake(self->m_det_res_mutex, portMAX_DELAY);
             self->m_det_results.push({det_res, timestamp});
@@ -177,22 +175,20 @@ void WhoHumanFaceRecognition::recognition_task(void *args)
 
             if (res != ESP_OK) {
                 ESP_LOGE(TAG, "jpeg encode failed");
+                break;
             }
 
-            dl::image::jpeg_img_t jpeg_img = {
-                .data = self->jpeg_out_buf,
-                .width = 640,
-                .height = 480,
-                .data_size = self->jpeg_encoded_size
-            };
+            res = jpeg_decoder_process(self->jpeg_dec_handle, &self->jpeg_dec_config, self->jpeg_out_buf, self->jpeg_encoded_size, self->jpeg_dec_out_buf, self->jpeg_dec_output_buf_alloced_size, &self->jpeg_decoded_size);
+            if (res!= ESP_OK) {
+                ESP_LOGE(TAG, "jpeg decode failed");
+                break;
+            }
 
             dl::image::img_t dl_img;
-            dl_img.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB888;
-            res  = sw_decode_jpeg(jpeg_img, dl_img, true);
-
-            if (res != ESP_OK) {
-                ESP_LOGE(TAG, "jpeg decode failed");
-            }
+            dl_img.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB565;
+            dl_img.data = (uint8_t *)self->jpeg_dec_out_buf;
+            dl_img.width = 640;
+            dl_img.height = 480;
 
             auto &det_res = self->m_detect->run(dl_img);
             if (detect_enable_flag == false) {
@@ -202,10 +198,12 @@ void WhoHumanFaceRecognition::recognition_task(void *args)
             xSemaphoreTake(self->m_det_res_mutex, portMAX_DELAY);
             self->m_det_results.push({det_res, timestamp});
             xSemaphoreGive(self->m_det_res_mutex);
-            heap_caps_free(dl_img.data);
 
+            if(self->is_recognize)
+            {
+                xTaskNotify(s_task_handle, (uint32_t)fr_event_t::RECOGNIZE, eSetBits);
+            }
             break;
-
         }
         }
     }
@@ -315,6 +313,7 @@ void WhoHumanFaceRecognition::display(who::cam::cam_fb_t *fb)
     }
 }
 
+
 void WhoHumanFaceRecognition::run()
 {
     jpeg_enc_config.src_type = JPEG_ENCODE_IN_FORMAT_YUV422;
@@ -341,13 +340,31 @@ void WhoHumanFaceRecognition::run()
 
     ESP_LOGI(TAG, "jpeg encoder init success");
 
+    jpeg_dec_config.output_format = JPEG_DECODE_OUT_FORMAT_RGB565;
+    jpeg_dec_config.rgb_order = JPEG_DEC_RGB_ELEMENT_ORDER_BGR;
+    jpeg_dec_config.conv_std = JPEG_YUV_RGB_CONV_STD_BT601;
+
+    jpeg_decode_engine_cfg_t decode_eng_cfg = {
+        .timeout_ms = 40,
+    };
+    ESP_ERROR_CHECK(jpeg_new_decoder_engine(&decode_eng_cfg, &jpeg_dec_handle));
+
+    jpeg_decode_memory_alloc_cfg_t jpeg_dec_output_mem_cfg = {
+        .buffer_direction = JPEG_DEC_ALLOC_OUTPUT_BUFFER,
+    };
+    jpeg_dec_out_buf = (uint8_t *)jpeg_alloc_decoder_mem(640 * 480 * 2, &jpeg_dec_output_mem_cfg, &jpeg_dec_output_buf_alloced_size);
+    if (!jpeg_dec_out_buf) {
+        ESP_LOGE(TAG, "failed to alloc jpeg dec output buf");
+        return;
+    }
+
     auto display_func_manager = DisplayFuncManager::get_instance();
     display_func_manager->register_display_func(
         "WhoRec", std::bind(&WhoHumanFaceRecognition::display, this, std::placeholders::_1));
     if (xTaskCreatePinnedToCore(event_handle_task, "WhoRecEvent", 2560, this, 2, &s_task_handle, 0) != pdPASS) {
         ESP_LOGE(TAG, "Failed to create WhoRecog_event task.\n");
     }
-    if (xTaskCreatePinnedToCore(recognition_task, "WhoRec", 3584, this, 2, nullptr, 1) != pdPASS) {
+    if (xTaskCreatePinnedToCore(recognition_task, "WhoRec", 6584, this, 2, nullptr, 1) != pdPASS) {
         ESP_LOGE(TAG, "Failed to create WhoRecog task.\n");
     }
 }

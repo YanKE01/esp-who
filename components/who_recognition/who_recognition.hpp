@@ -3,6 +3,7 @@
 #include "human_face_detect.hpp"
 #include "human_face_recognition.hpp"
 #include "driver/jpeg_encode.h"
+#include "driver/jpeg_decode.h"
 
 
 
@@ -36,10 +37,14 @@ public:
     int get_all_registered_id();
     void detect_enable(bool enable);
     esp_err_t delete_rec_result(int index);
+    bool is_recognize = false;
+    int recognize_count = 0;
+
 
 private:
     static void event_handle_task(void *args);
     static void recognition_task(void *args);
+    static void run_recog_task(void *args);
     static void lvgl_btn_event_handler(lv_event_t *e);
     static void iot_btn_event_handler(void *button_handle, void *usr_data);
     static void btn_event_handler(fr_event_t fr_event);
@@ -62,6 +67,14 @@ private:
     uint8_t *jpeg_out_buf;
     size_t jpeg_enc_output_buf_alloced_size;
     uint32_t jpeg_encoded_size = 0;
+
+    jpeg_decode_cfg_t jpeg_dec_config;
+    jpeg_decoder_handle_t jpeg_dec_handle;
+    uint8_t *jpeg_dec_out_buf;
+    size_t jpeg_dec_output_buf_alloced_size;
+    uint32_t jpeg_decoded_size = 0;
+
+
 };
 } // namespace app
 } // namespace who

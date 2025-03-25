@@ -34,9 +34,9 @@ TensorBase *FeatImpl::run(const dl::image::img_t &img, const std::vector<int> &l
     dl::TensorBase *feat = m_postprocessor->postprocess();
     latency[2].end();
 
-    latency[0].print("feat", "preprocess");
-    latency[1].print("feat", "forward");
-    latency[2].print("feat", "postprocess");
+    // latency[0].print("feat", "preprocess");
+    // latency[1].print("feat", "forward");
+    // latency[2].print("feat", "postprocess");
     return feat;
 }
 
